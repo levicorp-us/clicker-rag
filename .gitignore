@@ -1,0 +1,32 @@
+# Local installations, credentials, uploaded documents and inference artifacts
+.runtime/
+.venv/
+.env
+.env.*
+node_modules/
+*.secret
+*.gguf
+*.safetensors
+*.onnx
+*.pt
+*.pth
+*.ckpt
+*.bin
+
+# Working papers, personal fixtures and machine-specific shortcuts
+/outline.md
+/checklist.md
+*.docx
+*.pdf
+*.lnk
+/verification/*
+!/verification/__init__.py
+!/verification/test_db_startup.py
+!/verification/test_revision.py
+
+# Generated files
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+*.log

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>클리커 · 자기소개서 작업실</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <script defer src="/static/app.js"></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="#home"><b>✳</b> 클리커</a>
+      <nav>
+        <a id="nav-home" href="#home">내 자소서</a
+        ><a id="nav-data" href="#data">내 자료</a>
+      </nav>
+      <div class="tools">
+        <button data-action="jobs">작업 상태 <span id="busy"></span></button
+        ><button data-action="settings">설정</button>
+      </div>
+    </header>
+    <main id="main" aria-live="polite"></main>
+    <dialog id="modal">
+      <div class="dialog-top">
+        <h2 id="modal-title"></h2>
+        <button data-action="close" aria-label="닫기">닫기</button>
+      </div>
+      <div id="modal-body"></div>
+    </dialog>
+    <div id="toast" role="status"></div>
+  </body>
+</html>
