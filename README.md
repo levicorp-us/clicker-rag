@@ -4,45 +4,38 @@ Clicker helps job applicants turn resumes, project reports, and past application
 
 For example, ask Clicker to describe how you integrated two systems. It extracts tags from your instructions, searches your material by tag and meaning in PostgreSQL with pgvector, and sends the selected excerpts to an Ollama writing model. You can open the sources, edit the paragraph, and apply it to your draft. When you write the next paragraph, Clicker uses the preceding draft text for continuity. The web interface is in Korean.
 
-## Installation
+## Install on Windows
 
-1. **Prepare a 64-bit Windows machine.** Install Python 3.11 with the Windows Python Launcher, Node.js with npm, and Git. The first setup uses an internet connection. Open PowerShell and check that the tools are available:
+Use an x64 Windows PC with internet access and WinGet (Microsoft App Installer). The three model downloads total about 20 GiB on the computer running Ollama. Allow extra space for the application, database, and your documents.
 
-   ```powershell
-   py -3.11 --version
-   npm.cmd --version
-   git --version
-   winget --version
-   ```
+1. **Download and extract Clicker.** [Download the project ZIP](https://github.com/levicorp-us/clicker-rag/archive/refs/heads/main.zip). In File Explorer, right-click the ZIP, choose **Extract All**, then open the extracted folder containing `install.ps1`. Choose a location you can keep between sessions.
 
-2. **Get the project.**
-
-   ```powershell
-   git clone https://github.com/levicorp-us/clicker-rag.git
-   cd clicker-rag
-   ```
-
-3. **Choose where models will run.** For local inference, continue to step 4. The launcher installs Ollama with WinGet if needed. To use an existing Ollama server instead, set its address in the same PowerShell window before starting Clicker. Replace the example hostname with your own:
+2. **Open PowerShell in that folder.** Click the File Explorer address bar, type `powershell`, and press Enter. For a normal local installation, go straight to step 3. If you already run Ollama on another machine, set its address first, replacing the example hostname. The installer will fetch the models on that server.
 
    ```powershell
    $env:CLICKER_OLLAMA_URL = "http://your-model-server:11434"
    ```
 
-4. **Install and start Clicker.** From the project folder, run:
+3. **Run the installer.** It installs missing prerequisites (Python 3.11, Node.js with npm, and local Ollama when needed), sets up PostgreSQL with pgvector, and installs the models. Windows may ask for permission to install a prerequisite. Keep PowerShell open until you see **Clicker ready**. If a download is interrupted, run the same command again in the same folder.
 
    ```powershell
-   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start.ps1 -Setup -OpenBrowser
+   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
    ```
 
-   This creates a Python environment, installs PostgreSQL 17 and pgvector, and starts the web app and background worker. When you see **Clicker ready**, the browser opens the [writing workspace](http://127.0.0.1:8765/).
+4. **Check the first launch.** The installer opens the [writing workspace](http://127.0.0.1:8765/). Open [Model Settings](http://127.0.0.1:8765/#models) to see the installed models and the active selection for each role.
 
-5. **Install and select models.** Open [Model Settings](http://127.0.0.1:8765/#models). Pick installed models or download them by their Ollama registry names. For example, use `qwen3:8b` for writing and tag extraction and `bge-m3` for retrieval. You can also register a single GGUF file. Select the models for their roles and click the button beneath the selectors to validate and apply them. Wait for the settings page to show the new active models. Model weights are downloaded separately on the Ollama server.
+   | Installed model | Use on a new installation |
+   | --- | --- |
+   | `qwen3.8:27b` | Default for paragraph writing and tag extraction. On a local RTX 2060 with 6 GB VRAM, Clicker creates and selects the text profile `clicker-qwen3.8:27b`. |
+   | `bge-m3` | Default embedding model for semantic search. |
+   | `qwen3:4b` | Smaller alternative for writing or tag extraction. Select it in Model Settings and apply the change to use it. |
 
-6. **Start and stop on later visits.** Run either command from the project folder. If you use a remote model server, set `CLICKER_OLLAMA_URL` again in each new PowerShell session before starting.
+5. **Try a first paragraph.** Import a short project report under your materials and wait for its analysis to finish in the task panel. Open the writing workspace, enter a company, role, and application question, then give the material-based writer an instruction such as “Describe how I integrated two systems.” Review the paragraph and its cited material before adding it to your draft.
 
-   ```powershell
-   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start.ps1 -OpenBrowser
-   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start.ps1 -Stop
-   ```
+## Start and stop later
 
-   Stopping the app preserves your work. Keep the project’s `.runtime` folder and the database under `%LOCALAPPDATA%\ClickerRag` between runs.
+For a local installation, double-click **start.cmd** to open Clicker or **stop.cmd** to shut it down. Your documents and drafts persist between runs. Keep both the project's `.runtime` folder and the database in `%LOCALAPPDATA%\ClickerRag`.
+
+For a remote Ollama server, set `CLICKER_OLLAMA_URL` as in step 2 in each new PowerShell session, then run `.\start.cmd` from that window.
+
+If setup reports that WinGet is missing, install or update [Microsoft App Installer](https://apps.microsoft.com/detail/9nblggh4nns1), reopen PowerShell, and repeat step 3.

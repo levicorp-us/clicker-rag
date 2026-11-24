@@ -1,4 +1,4 @@
-param([switch]$Setup,[switch]$Stop,[switch]$Restart,[switch]$OpenBrowser)
+param([switch]$Setup,[switch]$Stop,[switch]$Restart,[switch]$OpenBrowser,[switch]$InstallModels)
 $ErrorActionPreference='Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $py=Join-Path $PSScriptRoot '.venv/Scripts/python.exe'
@@ -7,6 +7,12 @@ $env:OLLAMA_NO_CLOUD='1'
 $env:OLLAMA_HOST='127.0.0.1:11434'
 $stateFile=Join-Path $PSScriptRoot '.runtime/services.json'
 $runtimeState=Join-Path $PSScriptRoot '.runtime/ollama-service.json'
+function Start-ClickerService([string]$Name, [string]$Executable, [string[]]$Arguments) {
+    $logBase=if ($Name -eq 'ollama') { '-' } else { Join-Path $PSScriptRoot ('.runtime/'+$Name) }
+    $serviceId=& $py -m app.background $logBase $Executable @Arguments
+    if ($LASTEXITCODE) { throw "Could not launch $Name." }
+    return Get-CimInstance Win32_Process -Filter "ProcessId=$serviceId"
+}
 $lifecycle=New-Object System.Threading.Mutex($false, 'Local\ClickerRag.Lifecycle.8765')
 try {
 try { $null=$lifecycle.WaitOne() } catch [System.Threading.AbandonedMutexException] { }
@@ -45,15 +51,18 @@ if ($Setup -or !(Test-Path $py)) {
 if (-not $env:CLICKER_OLLAMA_URL) {
     $ollama=Join-Path $env:LOCALAPPDATA 'Programs/Ollama/ollama.exe'
     if (!(Test-Path $ollama)) {
+        $onPath=Get-Command ollama.exe -ErrorAction SilentlyContinue
+        if ($onPath) { $ollama=$onPath.Source }
+    }
+    if (!(Test-Path $ollama)) {
         winget install --id Ollama.Ollama -e --scope user --silent --accept-source-agreements --accept-package-agreements --disable-interactivity
         if (!(Test-Path $ollama)) { throw 'Install Ollama for Windows and retry.' }
     }
     try { $null=Invoke-RestMethod http://127.0.0.1:11434/api/version -TimeoutSec 3 }
     catch {
-        $daemon=Start-Process -FilePath $ollama -ArgumentList 'serve' -WindowStyle Hidden -PassThru
-        $proc=Get-CimInstance Win32_Process -Filter "ProcessId=$($daemon.Id)"
+        $proc=Start-ClickerService 'ollama' $ollama @('serve')
         if ($proc) {
-            @{id=$daemon.Id; started=$proc.CreationDate.ToUniversalTime().Ticks.ToString()} | ConvertTo-Json | Set-Content -LiteralPath $runtimeState
+            @{id=$proc.ProcessId; started=$proc.CreationDate.ToUniversalTime().Ticks.ToString()} | ConvertTo-Json | Set-Content -LiteralPath $runtimeState
         }
         $online=$false
         for ($i=0; $i -lt 40; $i++) {
@@ -62,6 +71,12 @@ if (-not $env:CLICKER_OLLAMA_URL) {
         }
         if (!$online) { throw 'Ollama did not become ready.' }
     }
+}
+if ($InstallModels) {
+    & $py -m app.install_models
+    if ($LASTEXITCODE) { throw 'Model installation failed. Check the message above and rerun install.ps1 to continue.' }
+}
+if (-not $env:CLICKER_OLLAMA_URL) {
     $installed=(Invoke-RestMethod http://127.0.0.1:11434/api/tags).models.name
     $gpuTool=Get-Command nvidia-smi -ErrorAction SilentlyContinue
     if ($gpuTool -and ($installed -contains 'qwen3.8:27b')) {
@@ -94,10 +109,9 @@ foreach ($svc in @(@{module='app.worker';args='-m app.worker';name='worker'},@{m
         # Check the existing listener below. Do not launch a competing web server.
         continue
     }
-    $logBase=Join-Path $PSScriptRoot ('.runtime/'+$svc.name)
-    $p=Start-Process -FilePath $py -ArgumentList $svc.args -WorkingDirectory $PSScriptRoot -RedirectStandardError "$logBase.err" -RedirectStandardOutput "$logBase.log" -WindowStyle Hidden -PassThru
-    $proc=Get-CimInstance Win32_Process -Filter "ProcessId=$($p.Id)"
-    $services+=@{id=$p.Id;started=$proc.CreationDate.ToUniversalTime().Ticks.ToString();module=$svc.module}
+    $proc=Start-ClickerService $svc.name $py ($svc.args.Split(' '))
+    if (!$proc) { throw "The $($svc.name) process exited. Check .runtime/$($svc.name).err." }
+    $services+=@{id=$proc.ProcessId;started=$proc.CreationDate.ToUniversalTime().Ticks.ToString();module=$svc.module}
 }
 ConvertTo-Json -InputObject $services | Set-Content $stateFile
 $url='http://127.0.0.1:8765/'
