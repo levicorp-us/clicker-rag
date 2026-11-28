@@ -117,6 +117,8 @@ def parse(db, owner, a):
     )
     if doc["app"]:
         enqueue(db, owner, "company_tags", a, f"company-tags:{doc['id']}:{doc['version']}")
+    if doc["kind"] == "보고서 자료":
+        enqueue(db, owner, "report_tags", a, f"report-tags:{doc['id']}:{doc['version']}")
     if auto:
         enqueue(db, owner, "classify", a, f"classify:{doc['id']}:{doc['version']}")
     return {"passages": len(parts)}

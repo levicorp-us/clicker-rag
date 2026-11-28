@@ -257,8 +257,27 @@ async function syncModels(screen) {
 function render() {
   const [page, id] = route();
   current = page === "write" ? id : null;
-  $("#nav-home").className = page === "data" ? "" : "active";
-  $("#nav-data").className = page === "data" ? "active" : "";
+  const inReports = ["reports","report","template","report-data"].includes(page);
+  $("#nav-home").className = ["essays","write"].includes(page) ? "active" : "";
+  $("#nav-reports").className = inReports ? "active" : "";
+  $("#nav-data").href = inReports ? "#report-data" : "#data";
+  $("#nav-data").textContent = inReports ? "보고서 자료" : "내 자료";
+  $("#nav-data").className = ["data","report-data"].includes(page) ? "active" : "";
+  if (inReports) {
+    const requested = location.hash;
+    return reportWorkspace(page,id).catch(e => {
+      if (location.hash === requested) {
+        toast(e.message);
+        if (!$("#rp-editor")) $("#main").innerHTML = '<p>' + esc(e.message) + '</p><a href="#reports">보고서 목록으로</a>';
+      }
+    });
+  }
+  if (!page || page === "home") {
+    $("#main").innerHTML = '<div class="head"><h1>문서 작업실</h1></div><div class="workspace-choices">' +
+      '<a class="card" href="#essays"><h2>자소서 작성</h2><p>경험과 자료를 바탕으로 지원 문항별 초안을 작성합니다.</p></a>' +
+      '<a class="card" href="#reports"><h2>보고서 작성</h2><p>등록한 양식에 업무 자료를 반영해 보고서를 작성합니다.</p></a></div>';
+    return;
+  }
   if (page === "models") return openModels();
   if (page === "data") return renderData();
   if (page === "write" && qNow()) return renderWriter(qNow());
@@ -306,7 +325,7 @@ const tagNames = (kind, id, state) =>
 function documentRows(search = "") {
   const query = search.trim().toLowerCase();
   return S.documents
-        .filter(d => !d.app && [d.name, d.kind, ...(d.metadata.folder_paths || [])]
+        .filter(d => !d.app && d.kind !== "보고서 자료" && [d.name, d.kind, ...(d.metadata.folder_paths || [])]
           .some(value => value.toLowerCase().includes(query)))
         .map(
           (d) =>
@@ -324,7 +343,7 @@ function documentRows(search = "") {
 function dataList() {
   if (tab === "저장 문단") return library(false);
   if (tab === "원본 문서") {
-    const total = S.documents.filter(d => !d.app).length;
+    const total = S.documents.filter(d => !d.app && d.kind !== "보고서 자료").length;
     return '<label>원본 문서 ' + total + '건<input type="search" id="doc-search" placeholder="파일명, 폴더 또는 자료 유형 검색"></label>' +
       '<div id="document-list">' + documentRows() + '</div>';
   }
@@ -1275,6 +1294,9 @@ async function actions(act, id) {
                 classify: "자료 유형 자동 분류",
                 extract: "경험 분석",
                 company_tags: "기업 자료 태그 제안",
+                report_tags: "보고서 자료 태그",
+                analyze_template: "양식 분석",
+                report_cell: "보고서 칸 작성",
                 research_company: "기업 자료 조사",
                 configure_models: "모델 검증 및 적용",
                 install_model: "모델 설치",
@@ -1287,7 +1309,7 @@ async function actions(act, id) {
             '</b> <span class="badge">' +
             esc(j.status) +
             "</span><p>" +
-            esc([j.subject || by(S.applications, j.args.application)?.company, j.location, j.error].filter(Boolean).join(" · ")) +
+            esc([j.subject || j.args.subject || by(S.applications, j.args.application)?.company, j.location, j.error].filter(Boolean).join(" · ")) +
             "</p>" +
             (["대기","실행"].includes(j.status) ? button("pause", "보류", j.id) : "") +
             (j.status === "보류" ? button("resume", "재개", j.id) : "") +

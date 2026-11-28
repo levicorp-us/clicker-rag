@@ -8,6 +8,7 @@ from . import pipeline
 from .model_management import configure_models, install_model
 from .model_settings import index_lock, load, using
 from .research import research_company
+from .report_jobs import analyze_template, report_tags, report_cell
 from .core import connect, migrate
 from .job_control import JobInterrupted, JobRun
 
@@ -16,6 +17,9 @@ TASKS = {
     for fn in (
         install_model,
         configure_models,
+        analyze_template,
+        report_tags,
+        report_cell,
         pipeline.parse,
         pipeline.company_tags,
         research_company,

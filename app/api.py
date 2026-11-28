@@ -12,7 +12,6 @@ from typing import Literal
 
 from fastapi import (
     Cookie,
-    Depends,
     FastAPI,
     File,
     Form,
@@ -27,14 +26,15 @@ from pydantic import BaseModel, Field, StringConstraints
 from typing_extensions import Annotated
 from psycopg.types.json import Jsonb
 from . import models
+from .report_api import router as report_router
 from .core import (
     ROOT,
+    U,
     FILES,
     connect,
     migrate,
     profile,
     session_for,
-    owner_for,
     one,
     enqueue,
     add_tag,
@@ -66,6 +66,7 @@ async def lifespan(app):
 
 
 app = FastAPI(title="클리커", lifespan=lifespan, docs_url=None, redoc_url=None)
+app.include_router(report_router)
 app.add_middleware(
     TrustedHostMiddleware, allowed_hosts=[h.strip() for h in os.getenv("CLICKER_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver").split(",") if h.strip()]
 )
@@ -97,13 +98,6 @@ def home(clicker_session: str | None = Cookie(None)):
             samesite="strict",
         )
     return r
-
-
-def user(clicker_session: str | None = Cookie(None)):
-    return owner_for(clicker_session)
-
-
-U = Annotated[str, Depends(user)]
 
 
 @app.get("/api/health")
@@ -265,7 +259,7 @@ def import_item(owner: U, file: UploadFile | None = File(None), text: str = Form
             one(db, "SELECT id FROM applications WHERE owner=%s AND id=%s", (owner, application))
         db.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))", (owner + digest,))
         old = db.execute("""SELECT id, metadata FROM documents WHERE owner=%s AND app IS NOT DISTINCT FROM %s
-            AND digest=%s AND active ORDER BY created,id LIMIT 1 FOR UPDATE""", (owner, application, digest)).fetchone()
+            AND digest=%s AND active AND kind<>'보고서 자료' ORDER BY created,id LIMIT 1 FOR UPDATE""", (owner, application, digest)).fetchone()
         if old:
             all_paths = old["metadata"].get("folder_paths", [])
             if paths and paths[0] not in all_paths:
@@ -356,6 +350,7 @@ def replace_doc(doc: ID, owner: U, file: UploadFile = File(...)):
             old["kind"],
             old["app"],
             old["metadata"],
+            analyze=old["kind"] != "보고서 자료",
             previous=doc,
             version=old["version"] + 1,
         )
@@ -377,7 +372,7 @@ def delete_doc(doc: ID, owner: U):
     with connect() as db:
         d = one(
             db,
-            "SELECT digest FROM documents WHERE id=%s AND owner=%s",
+            "SELECT digest,kind FROM documents WHERE id=%s AND owner=%s",
             (doc, owner),
         )
         db.execute(
@@ -390,11 +385,12 @@ def delete_doc(doc: ID, owner: U):
             (doc,),
         )
         db.execute("DELETE FROM documents WHERE id=%s", (doc,))
-        db.execute(
-            """UPDATE facts f SET status='출처 검토',embedding=NULL WHERE owner=%s AND NOT EXISTS
-            (SELECT 1 FROM citations c WHERE c.fact=f.id)""",
-            (owner,),
-        )
+        if d["kind"] != "보고서 자료":
+            db.execute(
+                """UPDATE facts f SET status='출처 검토',embedding=NULL WHERE owner=%s AND NOT EXISTS
+                (SELECT 1 FROM citations c WHERE c.fact=f.id)""",
+                (owner,),
+            )
         if not db.execute(
             "SELECT id FROM documents WHERE owner=%s AND digest=%s",
             (owner, d["digest"]),

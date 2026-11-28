@@ -10,7 +10,8 @@ from pathlib import Path
 import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
-from fastapi import HTTPException
+from fastapi import HTTPException, Cookie, Depends
+from typing import Annotated
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = Path(os.getenv("CLICKER_DATA", ROOT / ".runtime"))
@@ -45,7 +46,7 @@ def migrate():
         if db.execute("SELECT to_regclass('schema_revisions') AS present").fetchone()[
             "present"
         ]:
-            if db.execute("SELECT 1 FROM schema_revisions WHERE version=7").fetchone():
+            if db.execute("SELECT 1 FROM schema_revisions WHERE version=8").fetchone():
                 return
         else:
             db.execute((ROOT / "app/schema.sql").read_text(encoding="utf-8"))
@@ -62,7 +63,9 @@ def migrate():
         db.execute("INSERT INTO schema_revisions(version) VALUES(5) ON CONFLICT DO NOTHING")
         db.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS cleared boolean NOT NULL DEFAULT false")
         db.execute("INSERT INTO schema_revisions(version) VALUES(6) ON CONFLICT DO NOTHING")
-        db.execute((ROOT / "app/model_settings.sql").read_text(encoding="utf-8-sig"))
+        if not db.execute("SELECT 1 FROM schema_revisions WHERE version=7").fetchone():
+            db.execute((ROOT / "app/model_settings.sql").read_text(encoding="utf-8-sig"))
+        db.execute((ROOT / "app/reports.sql").read_text(encoding="utf-8"))
 
 
 def profile():
@@ -89,6 +92,13 @@ def owner_for(token):
     if not token or not hmac.compare_digest(token, session_for(owner)):
         raise HTTPException(401, "작성 화면을 다시 열어 주세요.")
     return str(uuid.UUID(owner))
+
+
+def session_user(clicker_session: str | None = Cookie(None)):
+    return owner_for(clicker_session)
+
+
+U = Annotated[str, Depends(session_user)]
 
 
 def one(db, sql, args=()):

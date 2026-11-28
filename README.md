@@ -4,6 +4,10 @@ Clicker helps job applicants turn resumes, project reports, and past application
 
 For example, ask Clicker to describe how you integrated two systems. It extracts tags from your instructions, searches your material by tag and meaning in PostgreSQL with pgvector, and sends the selected excerpts to an Ollama writing model. You can open the sources, edit the paragraph, and apply it to your draft. When you write the next paragraph, Clicker uses the preceding draft text for continuity. The web interface is in Korean.
 
+The home screen also opens a report workspace. Upload a blank or completed Word document (`.docx`), review the suggested input fields and template tags, and preview the cleared form. Each field can retain a fixed prefix. Keep previous entries as searchable evidence, or exclude examples when confirming the template. Additional work notes and files can be registered under report materials.
+
+Create a report from a confirmed template, select a field in the central preview, and enter instructions to generate or rewrite that field using retrieved sources. You can also edit and save fields yourself. Export writes the values into a copy of the DOCX package with its original tables, merged cells, styles, headers, and footers. The browser approximates Word pagination. Check the final page breaks in Word, especially for longer entries. This workflow supports ordinary Word paragraphs and table cells. Convert tracked changes, text boxes, or embedded objects to a clean DOCX copy before registration.
+
 ## Install on Windows
 
 Use an x64 Windows PC with internet access and WinGet (Microsoft App Installer). The three model downloads total about 20 GiB on the computer running Ollama. Allow extra space for the application, database, and your documents.

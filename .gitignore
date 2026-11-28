@@ -23,6 +23,7 @@ node_modules/
 !/verification/__init__.py
 !/verification/test_db_startup.py
 !/verification/test_revision.py
+!/verification/test_report_docx.py
 
 # Generated files
 __pycache__/
